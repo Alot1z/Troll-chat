@@ -1,12 +1,12 @@
-name: Smart Unpack ZIP to Repo Root (Non‑destructive)
+name: 🔓 Smart Unpack ZIP (Safe for Workflows)
 
 on:
   workflow_dispatch:
     inputs:
       zipfile:
-        description: "Navn på ZIP‑fil i roden"
+        description: "ZIP-fil i repoets rodmappe"
         required: true
-        default: "trollchat_project.zip"
+        default: "trollchat_full_project.zip"
 
 jobs:
   unpack:
@@ -15,46 +15,49 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup git identity
+      - name: 🛠 Setup git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Validate ZIP file
+      - name: 🔍 Verify ZIP file exists
         run: |
           ZIP="${{ github.event.inputs.zipfile }}"
           if [ ! -f "$ZIP" ]; then
-            echo "❌ ZIP‑fil \"$ZIP\" ikke fundet!"
+            echo "❌ ZIP file not found: $ZIP"
             exit 1
           fi
 
-      - name: Unzip to temp folder
+      - name: 📦 Unpack zip to temp
         run: |
           rm -rf unpack_temp
           mkdir unpack_temp
-          unzip -o "${{ github.event.inputs.zipfile }}" -d unpack_temp
-          echo "✅ Udpakket til unpack_temp/"
+          unzip -o "$ZIP" -d unpack_temp
 
-      - name: Copy files intelligently
+      - name: 🧠 Copy unpacked files to repo (ignore .github/workflows)
         run: |
           cd unpack_temp
-          find . -type f | while read -r filepath; do
-            REL="${filepath#./}"
-            DIR=$(dirname "$REL")
-            echo "➡️ Copying $REL"
-
-            mkdir -p "../$DIR"
-            cp -f "$filepath" "../$REL"
+          find . -type f | while read -r file; do
+            rel="${file#./}"
+            # Skip if in .github/workflows
+            if [[ "$rel" == .github/workflows/* ]]; then
+              echo "⏩ Skipping workflow file: $rel"
+              continue
+            fi
+            dest="../$rel"
+            echo "✅ Copying: $rel"
+            mkdir -p "$(dirname "$dest")"
+            cp -f "$file" "$dest"
           done
           cd ..
 
-      - name: Delete ZIP file (optional)
+      - name: 🧹 Delete ZIP file after unpack (optional)
         run: rm -f "${{ github.event.inputs.zipfile }}"
 
-      - name: Commit & push updates
+      - name: 🧾 Commit & Push unpacked content
         run: |
           git add .
           git diff --cached --quiet || git commit -m "📦 Smart unpack ZIP: ${{ github.event.inputs.zipfile }}"
