@@ -1,8 +1,10 @@
+name: Smart Unpack ZIPs Intelligently
+
 on:
   workflow_dispatch:
     inputs:
       zipfile:
-        description: 'ZIP-filnavn (efterlad tom for automatisk valg)'
+        description: 'ZIP filename (optional). Leave blank to process all .zip files in root.'
         required: false
 
 jobs:
@@ -12,31 +14,55 @@ jobs:
       contents: write
 
     steps:
-    - name: 📥 Checkout repo
+    - name: 📥 Checkout repository
       uses: actions/checkout@v4
 
-    - name: 🔍 Find ZIP-fil automatisk hvis input mangler
-      id: zipfile
+    - name: 📦 Detect ZIP file(s)
+      id: zipdetect
       run: |
         if [ -z "${{ github.event.inputs.zipfile }}" ]; then
-          found_zip=$(find . -maxdepth 1 -name "*.zip" | head -n 1 | sed 's|^\./||')
-          echo "Ingen input – bruger: $found_zip"
-          echo "zipfile=$found_zip" >> $GITHUB_OUTPUT
+          ZIPS=$(find . -maxdepth 1 -type f -name "*.zip" | sed 's|^\./||')
         else
-          echo "zipfile=${{ github.event.inputs.zipfile }}" >> $GITHUB_OUTPUT
+          ZIPS="${{ github.event.inputs.zipfile }}"
         fi
+        echo "zip_files<<EOF" >> $GITHUB_OUTPUT
+        echo "$ZIPS" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
 
-    - name: 📂 Unzip ZIP-fil
+    - name: 🔍 Unpack and replace intelligently
       run: |
-        mkdir temp_unzip
-        unzip -q "${{ steps.zipfile.outputs.zipfile }}" -d temp_unzip
-        cp -r temp_unzip/* ./
-        rm "${{ steps.zipfile.outputs.zipfile }}"
+        for zip in ${{ steps.zipdetect.outputs.zip_files }}; do
+          echo "🔍 Processing: $zip"
 
-    - name: ✅ Commit og push ændringer
+          # Create temp dir for extraction
+          mkdir -p tmp_unzip
+          unzip -o "$zip" -d tmp_unzip
+
+          # Handle all files and dirs from extracted ZIP
+          cd tmp_unzip
+          find . -type f | while read -r file; do
+            clean_path="${file#./}"  # remove ./ prefix
+            dest_path="../$clean_path"
+
+            if [ -f "$dest_path" ]; then
+              echo "🗑️ Removing existing file: $dest_path"
+              rm -f "$dest_path"
+            fi
+
+            echo "📥 Moving new file to: $dest_path"
+            mkdir -p "$(dirname "$dest_path")"
+            mv "$file" "$dest_path"
+          done
+          cd ..
+
+          # Clean up
+          rm -rf tmp_unzip "$zip"
+        done
+
+    - name: ✅ Commit and push changes
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add .
-        git commit -m "✅ Automatisk unpack af ZIP: ${{ steps.zipfile.outputs.zipfile }}" || echo "Intet nyt"
-        git push origin HEAD
+        git add -A
+        git diff --cached --quiet || git commit -m "✅ Smart unpack and update from ZIP"
+        git push
