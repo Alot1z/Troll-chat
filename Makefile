@@ -9,13 +9,14 @@ LLAMA_DIR := llama
 LLAMA_LIB := $(LLAMA_DIR)/build/libllama.a
 LLAMA_OBJ := llama.o
 
-# compile flags (only headers here—no frameworks)
+# Compile flags — include llama root and ggml/src for ggml.h
 CFLAGS := -target arm64-apple-ios11.0 \
           -isysroot $(IOS_SDK) \
           -fobjc-arc \
-          -I$(LLAMA_DIR)
+          -I$(LLAMA_DIR) \
+          -I$(LLAMA_DIR)/ggml/src
 
-# link flags (frameworks + static lib)
+# Link flags — frameworks + static lib
 LDFLAGS := -framework Foundation \
            -framework UIKit \
            -lobjc \
@@ -25,11 +26,13 @@ LDFLAGS := -framework Foundation \
 
 all: src/$(APP_NAME)
 
+# Build final binary
 src/$(APP_NAME): $(OBJ) $(LLAMA_LIB)
-	# extract single object from static lib
+	# extract just llama.o from the static library
 	ar -x $(LLAMA_LIB) $(LLAMA_OBJ)
 	$(CC) $(CFLAGS) $< $(LLAMA_OBJ) -o src/$(APP_NAME) $(LDFLAGS)
 
+# Compile your main.m
 src/main.o: src/main.m
 	$(CC) $(CFLAGS) -c $< -o $@
 
