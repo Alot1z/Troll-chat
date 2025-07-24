@@ -1,10 +1,10 @@
-name: Smart Unpack ZIP to Repo Root (Non-destructive)
+name: Smart Unpack ZIP to Repo Root (Non‑destructive)
 
 on:
   workflow_dispatch:
     inputs:
       zipfile:
-        description: "Navn på ZIP-fil i roden"
+        description: "Navn på ZIP‑fil i roden"
         required: true
         default: "trollchat_project.zip"
 
@@ -15,47 +15,47 @@ jobs:
       contents: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup git identity
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Setup git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Check and unzip file (non-destructive)
-      run: |
-        ZIPFILE="${{ github.event.inputs.zipfile }}"
+      - name: Validate ZIP file
+        run: |
+          ZIP="${{ github.event.inputs.zipfile }}"
+          if [ ! -f "$ZIP" ]; then
+            echo "❌ ZIP‑fil \"$ZIP\" ikke fundet!"
+            exit 1
+          fi
 
-        if [ ! -f "$ZIPFILE" ]; then
-          echo "❌ ZIP-filen '$ZIPFILE' findes ikke!"
-          exit 1
-        fi
+      - name: Unzip to temp folder
+        run: |
+          rm -rf unpack_temp
+          mkdir unpack_temp
+          unzip -o "${{ github.event.inputs.zipfile }}" -d unpack_temp
+          echo "✅ Udpakket til unpack_temp/"
 
-        # Midlertidig udpakningsmappe
-        mkdir unpack_temp
-        unzip -o "$ZIPFILE" -d unpack_temp
+      - name: Copy files intelligently
+        run: |
+          cd unpack_temp
+          find . -type f | while read -r filepath; do
+            REL="${filepath#./}"
+            DIR=$(dirname "$REL")
+            echo "➡️ Copying $REL"
 
-        echo "▶️ Kopierer nye og overskrivbare filer..."
+            mkdir -p "../$DIR"
+            cp -f "$filepath" "../$REL"
+          done
+          cd ..
 
-        # Kopier kun det der findes i zip (overskriv eksisterende, bevar resten)
-        rsync -av unpack_temp/ ./ \
-          --exclude '.git/' \
-          --exclude '.github/' \
-          --exclude '.github/workflows/' \
-          --delete-excluded
+      - name: Delete ZIP file (optional)
+        run: rm -f "${{ github.event.inputs.zipfile }}"
 
-        # Nu separately håndter .github så vi bevarer de filer der ikke er i zip
-        if [ -d "unpack_temp/.github" ]; then
-          echo "▶️ Kopierer .github (intelligent)"
-          rsync -av unpack_temp/.github/ ./.github/
-        fi
-
-        # Fjern kun selve ZIP-filen – ikke andet
-        rm -f "$ZIPFILE"
-
-    - name: Commit and Push unpacked contents
-      run: |
-        git add -A
-        git commit -m "📦 Smart unpack ZIP: ${{ github.event.inputs.zipfile }}"
-        git push
+      - name: Commit & push updates
+        run: |
+          git add .
+          git diff --cached --quiet || git commit -m "📦 Smart unpack ZIP: ${{ github.event.inputs.zipfile }}"
+          git push
