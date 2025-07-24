@@ -1,11 +1,12 @@
-name: Smart Unpack ZIPs Intelligently
+name: Smart Unpack ZIP to Repo Root (Non-destructive)
 
 on:
   workflow_dispatch:
     inputs:
       zipfile:
-        description: 'ZIP filename (optional). Leave blank to process all .zip files in root.'
-        required: false
+        description: "Navn på ZIP-fil i roden"
+        required: true
+        default: "trollchat_project.zip"
 
 jobs:
   unpack:
@@ -14,55 +15,47 @@ jobs:
       contents: write
 
     steps:
-    - name: 📥 Checkout repository
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: 📦 Detect ZIP file(s)
-      id: zipdetect
+    - name: Setup git identity
       run: |
-        if [ -z "${{ github.event.inputs.zipfile }}" ]; then
-          ZIPS=$(find . -maxdepth 1 -type f -name "*.zip" | sed 's|^\./||')
-        else
-          ZIPS="${{ github.event.inputs.zipfile }}"
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Check and unzip file (non-destructive)
+      run: |
+        ZIPFILE="${{ github.event.inputs.zipfile }}"
+
+        if [ ! -f "$ZIPFILE" ]; then
+          echo "❌ ZIP-filen '$ZIPFILE' findes ikke!"
+          exit 1
         fi
-        echo "zip_files<<EOF" >> $GITHUB_OUTPUT
-        echo "$ZIPS" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
 
-    - name: 🔍 Unpack and replace intelligently
+        # Midlertidig udpakningsmappe
+        mkdir unpack_temp
+        unzip -o "$ZIPFILE" -d unpack_temp
+
+        echo "▶️ Kopierer nye og overskrivbare filer..."
+
+        # Kopier kun det der findes i zip (overskriv eksisterende, bevar resten)
+        rsync -av unpack_temp/ ./ \
+          --exclude '.git/' \
+          --exclude '.github/' \
+          --exclude '.github/workflows/' \
+          --delete-excluded
+
+        # Nu separately håndter .github så vi bevarer de filer der ikke er i zip
+        if [ -d "unpack_temp/.github" ]; then
+          echo "▶️ Kopierer .github (intelligent)"
+          rsync -av unpack_temp/.github/ ./.github/
+        fi
+
+        # Fjern kun selve ZIP-filen – ikke andet
+        rm -f "$ZIPFILE"
+
+    - name: Commit and Push unpacked contents
       run: |
-        for zip in ${{ steps.zipdetect.outputs.zip_files }}; do
-          echo "🔍 Processing: $zip"
-
-          # Create temp dir for extraction
-          mkdir -p tmp_unzip
-          unzip -o "$zip" -d tmp_unzip
-
-          # Handle all files and dirs from extracted ZIP
-          cd tmp_unzip
-          find . -type f | while read -r file; do
-            clean_path="${file#./}"  # remove ./ prefix
-            dest_path="../$clean_path"
-
-            if [ -f "$dest_path" ]; then
-              echo "🗑️ Removing existing file: $dest_path"
-              rm -f "$dest_path"
-            fi
-
-            echo "📥 Moving new file to: $dest_path"
-            mkdir -p "$(dirname "$dest_path")"
-            mv "$file" "$dest_path"
-          done
-          cd ..
-
-          # Clean up
-          rm -rf tmp_unzip "$zip"
-        done
-
-    - name: ✅ Commit and push changes
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
         git add -A
-        git diff --cached --quiet || git commit -m "✅ Smart unpack and update from ZIP"
+        git commit -m "📦 Smart unpack ZIP: ${{ github.event.inputs.zipfile }}"
         git push
