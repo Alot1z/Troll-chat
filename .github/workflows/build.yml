@@ -15,45 +15,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 🧾 Setup Git identity
+      - name: 🧾 Configure Git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: 📦 Install Homebrew tools
-        run: |
-          brew update
-          brew install curl zip
-
-      - name: 🔁 Cache llama.cpp
+      - name: 🔁 Cache llama.cpp source
         id: cache-llama
         uses: actions/cache@v4
         with:
           path: llama
-          key: llama-cpp-${{ runner.os }}-v1
+          key: llama-cpp-${{ runner.os }}-v2
 
-      - name: 🐑 Download full llama.cpp (if not cached)
+      - name: 🐑 Clone llama.cpp if cache miss
         if: steps.cache-llama.outputs.cache-hit != 'true'
         run: |
           git clone --depth=1 https://github.com/ggerganov/llama.cpp.git llama
 
-      - name: ⚙️ Build llama.o
+      - name: ⚙️ Build static libllama.a via CMake
         run: |
-          # ensure we have the SDK set up
           cd llama
-          make libllama.a
-          # move the library into an object
-          ar -x libllama.a
-          mv llama.o build/
-          cd ..
+          mkdir -p build
+          cd build
+          cmake -DLLAMA_CUBLAS=OFF -DCMAKE_BUILD_TYPE=Release ..
+          make -j$(sysctl -n hw.ncpu)
 
       - name: 🛠 Build trollchat binary
-        run: |
-          make
+        run: make
 
       - name: 🔐 Code‑sign for TrollStore
-        run: |
-          ldid -Sentitlements/trollchat.entitlements src/$(APP_NAME)
+        run: ldid -Sentitlements/trollchat.entitlements src/$(APP_NAME)
 
       - name: 📱 Package .ipa
         run: |
