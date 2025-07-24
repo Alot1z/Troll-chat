@@ -1,11 +1,12 @@
-name: Unpack ZIP and Commit
+name: Manual Unpack ZIP
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '*.zip'
+  workflow_dispatch:
+    inputs:
+      zipfile:
+        description: 'Select ZIP file to unpack (must be in repo root)'
+        required: true
+        default: 'trollchat_complete.zip'
 
 jobs:
   unpack:
@@ -17,29 +18,25 @@ jobs:
       with:
         persist-credentials: true
 
-    - name: Find ZIP file
-      id: findzip
-      run: |
-        ZIPFILE=$(ls *.zip | head -n 1)
-        echo "zipfile=$ZIPFILE" >> $GITHUB_OUTPUT
+    - name: List ZIP files in repo root
+      run: ls *.zip || echo "No ZIP files found in repo root"
 
-    - name: Unpack ZIP
+    - name: Unpack selected ZIP
       run: |
-        unzip ${{ steps.findzip.outputs.zipfile }} -d unpacked
+        echo "Unpacking ${{ github.event.inputs.zipfile }}"
+        unzip "${{ github.event.inputs.zipfile }}" -d unpacked
         ls unpacked
 
     - name: Copy unpacked files to repo root
-      run: |
-        cp -r unpacked/* .
-    
+      run: cp -r unpacked/* .
+
     - name: Remove ZIP file (optional)
-      run: |
-        rm ${{ steps.findzip.outputs.zipfile }}
+      run: rm "${{ github.event.inputs.zipfile }}"
 
     - name: Commit and push unpacked files
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add .
-        git commit -m "Unpack ZIP contents automatically" || echo "No changes to commit"
+        git commit -m "Unpack ZIP contents: ${{ github.event.inputs.zipfile }}" || echo "No changes to commit"
         git push
