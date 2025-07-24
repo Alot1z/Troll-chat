@@ -1,47 +1,70 @@
-name: 🛠️ Build TrollChat iOS App
+name: 🦙 Build TrollChat iOS CLI
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-latest
+    permissions:
+      contents: write
 
     steps:
-      - name: 📥 Checkout repository
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: 🧾 Setup Git identity (til commit)
+      - name: 🧾 Setup Git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: 📦 Install tools
+      - name: 📦 Install Homebrew tools
         run: |
-          brew install make
-          sudo xcode-select -s /Applications/Xcode_15.4.app
+          brew update
+          brew install curl zip
 
-      - name: 💾 Restore llama.cpp cache
-        id: llama-cache
+      - name: 🔁 Cache llama.cpp
+        id: cache-llama
         uses: actions/cache@v4
         with:
           path: llama
-          key: llama-cpp-v1
+          key: llama-cpp-${{ runner.os }}-v1
 
-      - name: 🐑 Download llama.cpp (hvis ikke cached)
-        if: steps.llama-cache.outputs.cache-hit != 'true'
+      - name: 🐑 Download full llama.cpp (if not cached)
+        if: steps.cache-llama.outputs.cache-hit != 'true'
         run: |
           git clone --depth=1 https://github.com/ggerganov/llama.cpp.git llama
 
-      - name: 🧠 Compile project
-        run: make
-
-      - name: 🧩 Commit llama.cpp til repo hvis ny
-        if: steps.llama-cache.outputs.cache-hit != 'true'
+      - name: ⚙️ Build llama.o
         run: |
-          git add llama
-          git commit -m "🤖 Add llama.cpp to repo via Actions" || echo "✔️ No changes to commit"
-          git push || echo "📦 Skipped push (fork or permission denied)"
+          # ensure we have the SDK set up
+          cd llama
+          make libllama.a
+          # move the library into an object
+          ar -x libllama.a
+          mv llama.o build/
+          cd ..
 
-      - name: ✅ Done
-        run: echo "🎉 Build success"
+      - name: 🛠 Build trollchat binary
+        run: |
+          make
+
+      - name: 🔐 Code‑sign for TrollStore
+        run: |
+          ldid -Sentitlements/trollchat.entitlements src/$(APP_NAME)
+
+      - name: 📱 Package .ipa
+        run: |
+          mkdir -p Payload/TrollChat.app
+          cp src/$(APP_NAME) Payload/TrollChat.app/
+          cp trollchat.plist Payload/TrollChat.app/Info.plist
+          cp -r models Payload/TrollChat.app/models
+          zip -qry TrollChat.ipa Payload
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrollChat.ipa
+          path: TrollChat.ipa
