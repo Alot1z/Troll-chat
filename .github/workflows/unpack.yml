@@ -1,42 +1,42 @@
-name: Manual Unpack ZIP
-
 on:
   workflow_dispatch:
     inputs:
       zipfile:
-        description: 'Select ZIP file to unpack (must be in repo root)'
-        required: true
-        default: 'trollchat_complete.zip'
+        description: 'ZIP-filnavn (efterlad tom for automatisk valg)'
+        required: false
 
 jobs:
   unpack:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-    - name: Checkout repo
+    - name: 📥 Checkout repo
       uses: actions/checkout@v4
-      with:
-        persist-credentials: true
 
-    - name: List ZIP files in repo root
-      run: ls *.zip || echo "No ZIP files found in repo root"
-
-    - name: Unpack selected ZIP
+    - name: 🔍 Find ZIP-fil automatisk hvis input mangler
+      id: zipfile
       run: |
-        echo "Unpacking ${{ github.event.inputs.zipfile }}"
-        unzip "${{ github.event.inputs.zipfile }}" -d unpacked
-        ls unpacked
+        if [ -z "${{ github.event.inputs.zipfile }}" ]; then
+          found_zip=$(find . -maxdepth 1 -name "*.zip" | head -n 1 | sed 's|^\./||')
+          echo "Ingen input – bruger: $found_zip"
+          echo "zipfile=$found_zip" >> $GITHUB_OUTPUT
+        else
+          echo "zipfile=${{ github.event.inputs.zipfile }}" >> $GITHUB_OUTPUT
+        fi
 
-    - name: Copy unpacked files to repo root
-      run: cp -r unpacked/* .
+    - name: 📂 Unzip ZIP-fil
+      run: |
+        mkdir temp_unzip
+        unzip -q "${{ steps.zipfile.outputs.zipfile }}" -d temp_unzip
+        cp -r temp_unzip/* ./
+        rm "${{ steps.zipfile.outputs.zipfile }}"
 
-    - name: Remove ZIP file (optional)
-      run: rm "${{ github.event.inputs.zipfile }}"
-
-    - name: Commit and push unpacked files
+    - name: ✅ Commit og push ændringer
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add .
-        git commit -m "Unpack ZIP contents: ${{ github.event.inputs.zipfile }}" || echo "No changes to commit"
-        git push
+        git commit -m "✅ Automatisk unpack af ZIP: ${{ steps.zipfile.outputs.zipfile }}" || echo "Intet nyt"
+        git push origin HEAD
