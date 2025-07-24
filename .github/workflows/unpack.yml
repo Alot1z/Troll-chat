@@ -31,27 +31,28 @@ jobs:
           mkdir -p unpack_temp
           unzip -o "$ZIP" -d unpack_temp
 
-      - name: 🔄 Smart overwrite files from ZIP
+      - name: 🔄 Smart overwrite with log
         run: |
+          echo "🧾 Changed files:" > changed_files.log
           cd unpack_temp
           find . -type f | while read -r file; do
             rel="${file#./}"
             target="../$rel"
 
-            # If file exists in the repo, delete it
             if [ -f "$target" ]; then
-              echo "🧹 Removing existing: $target"
+              echo "🧹 Deleting: $rel" | tee -a ../changed_files.log
               rm -f "$target"
             fi
 
-            # Create parent folder if needed and copy in new file
-            echo "📥 Copying new: $rel"
+            echo "📥 Copying: $rel" | tee -a ../changed_files.log
             mkdir -p "../$(dirname "$rel")"
             cp "$file" "$target"
           done
           cd ..
+          echo "📜 Done copying files. Changes listed below:"
+          cat changed_files.log
 
-      - name: ✅ Done - review changes
+      - name: ✅ Reminder
         run: |
-          echo "🟢 Files from ZIP have replaced matching ones in the repo."
-          echo "📝 ZIP file has NOT been deleted. No auto-commit done."
+          echo "🟢 Files updated in workspace. You must commit + push manually to see changes in GitHub."
+          echo "📝 Use 'git add . && git commit -m \"Update from ZIP\" && git push'"
