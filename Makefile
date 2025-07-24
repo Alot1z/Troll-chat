@@ -2,7 +2,7 @@ APP_NAME := trollchat
 SRC      := src/main.m
 OBJ      := src/main.o
 CC       := clang
-IOS_SDK  := $(shell xcrun --sdk iphoneos --show-sdk-path)
+IOS_SDK  := $(shell xcrun --sdªk iphoneos --show-sdk-path)
 
 # llama.cpp opsætning
 LLAMA_DIR := llama
