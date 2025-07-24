@@ -20,31 +20,32 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: 🔁 Cache llama.cpp source
+      - name: 🔁 Cache llama.cpp
         id: cache-llama
         uses: actions/cache@v4
         with:
           path: llama
-          key: llama-cpp-${{ runner.os }}-v2
+          key: llama-cpp-${{ runner.os }}-v3
 
-      - name: 🐑 Clone llama.cpp if cache miss
+      - name: 🐑 Clone llama.cpp if needed
         if: steps.cache-llama.outputs.cache-hit != 'true'
         run: |
           git clone --depth=1 https://github.com/ggerganov/llama.cpp.git llama
 
-      - name: ⚙️ Build static libllama.a via CMake
+      - name: ⚙️ Build libllama.a via CMake
         run: |
           cd llama
           mkdir -p build
           cd build
-          cmake -DLLAMA_CUBLAS=OFF -DCMAKE_BUILD_TYPE=Release ..
+          cmake -DCMAKE_BUILD_TYPE=Release ..
           make -j$(sysctl -n hw.ncpu)
 
-      - name: 🛠 Build trollchat binary
+      - name: 🛠 Build trollchat
         run: make
 
       - name: 🔐 Code‑sign for TrollStore
-        run: ldid -Sentitlements/trollchat.entitlements src/$(APP_NAME)
+        run: |
+          ldid -Sentitlements/trollchat.entitlements src/$(APP_NAME)
 
       - name: 📱 Package .ipa
         run: |
