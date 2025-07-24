@@ -1,0 +1,43 @@
+name: Build TrollChat IPA & package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install deps
+      run: sudo apt update && sudo apt install -y clang ldid zip curl
+
+    - name: Download TinyLLaMA model (if not present)
+      run: |
+        mkdir -p models
+        if [ ! -f models/tinyllama.gguf ]; then
+          curl -L -o models/tinyllama.gguf https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
+        fi
+
+    - name: Compile CLI app
+      run: make
+
+    - name: Sign binary
+      run: ldid -Sentitlements/trollchat.entitlements trollchat
+
+    - name: Create .ipa
+      run: |
+        mkdir -p Payload/TrollChat.app
+        cp trollchat Payload/TrollChat.app/
+        cp trollchat.plist Payload/TrollChat.app/Info.plist
+        cp -r models Payload/TrollChat.app/models
+        zip -qry TrollChat.ipa Payload
+
+    - name: Publish IPA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TrollChat.ipa
+        path: TrollChat.ipa
