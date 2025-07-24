@@ -1,64 +1,67 @@
-name: 🔓 Smart Unpack ZIP (Safe for Workflows)
+name: 📦 Manual Smart ZIP Unpack
 
 on:
   workflow_dispatch:
     inputs:
       zipfile:
-        description: "ZIP-fil i repoets rodmappe"
+        description: "ZIP filename in root (e.g. trollchat_full_project.zip)"
         required: true
         default: "trollchat_full_project.zip"
 
 jobs:
   unpack:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🛠 Setup git identity
+      - name: 🧾 Set Git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: 🔍 Verify ZIP file exists
+      - name: 🔍 Show working directory and files
         run: |
-          ZIP="${{ github.event.inputs.zipfile }}"
-          if [ ! -f "$ZIP" ]; then
-            echo "❌ ZIP file not found: $ZIP"
-            exit 1
+          echo "🔎 Current path: $(pwd)"
+          echo "📂 Files:"
+          ls -alh
+
+      - name: 🔐 Store input ZIP filename as env var
+        id: vars
+        run: echo "ZIPFILE=${{ github.event.inputs.zipfile }}" >> $GITHUB_ENV
+
+      - name: ❓ Check if ZIP file exists
+        run: |
+          if [ ! -f "$ZIPFILE" ]; then
+            echo "❌ ZIP file not found: $ZIPFILE"
+            exit 9
+          else
+            echo "✅ Found ZIP: $ZIPFILE"
           fi
 
-      - name: 📦 Unpack zip to temp
+      - name: 📦 Unpack ZIP to unpack_temp
         run: |
-          rm -rf unpack_temp
-          mkdir unpack_temp
-          unzip -o "$ZIP" -d unpack_temp
+          mkdir -p unpack_temp
+          unzip -o "$ZIPFILE" -d unpack_temp
 
-      - name: 🧠 Copy unpacked files to repo (ignore .github/workflows)
+      - name: 🧠 Copy unpacked files (skips .github/**)
         run: |
           cd unpack_temp
           find . -type f | while read -r file; do
             rel="${file#./}"
-            # Skip if in .github/workflows
-            if [[ "$rel" == .github/workflows/* ]]; then
-              echo "⏩ Skipping workflow file: $rel"
+            if [[ "$rel" == .github/* ]]; then
+              echo "⏩ Skipping .github file: $rel"
               continue
             fi
-            dest="../$rel"
-            echo "✅ Copying: $rel"
-            mkdir -p "$(dirname "$dest")"
-            cp -f "$file" "$dest"
+            echo "✅ Overwriting: $rel"
+            mkdir -p "../$(dirname "$rel")"
+            cp -f "$file" "../$rel"
           done
           cd ..
 
-      - name: 🧹 Delete ZIP file after unpack (optional)
-        run: rm -f "${{ github.event.inputs.zipfile }}"
-
-      - name: 🧾 Commit & Push unpacked content
+      - name: ✅ Done
         run: |
-          git add .
-          git diff --cached --quiet || git commit -m "📦 Smart unpack ZIP: ${{ github.event.inputs.zipfile }}"
-          git push
+          echo "🟢 All files successfully unpacked."
+          echo "📌 ZIP file '$ZIPFILE' kept."
+          echo "✋ Please commit & push manually if desired."
