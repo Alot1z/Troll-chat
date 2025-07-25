@@ -23,6 +23,24 @@ jobs:
           git config --global user.name "TrollChat Auto Builder"
           git config --global user.email "trollchat-bot@users.noreply.github.com"
 
+      - name: 🧰 ⏳ Skip tool re-install if already exists
+        run: |
+          if [ -f tools/version.txt ]; then
+            echo "✅ Tools already installed"
+            exit 0
+          fi
+
+          echo "Installing tools..."
+          mkdir -p tools
+          for tool in ldid clang make dpkg python3 strip; do
+            path=$(which $tool || true)
+            [ -n "$path" ] && cp "$path" tools/$tool
+          done
+          echo "v1.0" > tools/version.txt
+          git add tools
+          git commit -m "📦 Add tools v1.0" || true
+          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main || true
+
       - name: 🐑 Clone llama.cpp permanently if missing
         run: |
           if [ ! -d "llama" ]; then
@@ -48,11 +66,12 @@ jobs:
           make -j$(sysctl -n hw.ncpu)
 
       - name: 🛠 Build trollchat binary
-        run: make
+        run: |
+          make
 
       - name: 🔐 Code-sign for TrollStore
         run: |
-          ldid -Sentitlements/trollchat.entitlements src/trollchat
+          ./tools/ldid -Sentitlements/trollchat.entitlements src/trollchat
 
       - name: 📱 Package .ipa
         run: |
