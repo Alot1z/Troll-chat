@@ -43,9 +43,16 @@ jobs:
       - name: 🔐 Codesign binary (placeholder)
         run: |
           echo "Signing binary..."
-          # eksempel: ldid -S entitlements.plist src/trollchat
+          # ldid -S entitlements.plist path/to/trollchat
 
-      - name: 📦 Package into .ipa (placeholder)
+      - name: 📦 Package into .ipa
         run: |
           echo "Packaging .ipa..."
-          # her kan du kalde scripts eller xcodebuild kommandoer til pakning
+          mkdir -p build
+          cp path/to/generated.ipa build/TrollChat.ipa
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrollChat.ipa
+          path: build/TrollChat.ipa
