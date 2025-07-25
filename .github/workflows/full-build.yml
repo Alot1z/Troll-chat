@@ -1,7 +1,7 @@
 name: 🚀 Full Build (CommitTools + Build)
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # <- vigtig! Muliggør manuel kørsel via GitHub UI
 
 jobs:
   full:
@@ -37,8 +37,5 @@ jobs:
       - name: 🔧 Build TrollChat binary
         run: make
 
-      - name: 📦 Package into .ipa (TODO)
-        run: echo "Placeholder for codesign + .ipa packaging"
-
-      - name: ✅ Done
-        run: echo "Build completed successfully"
+      - name: 📦 Package into .ipa (placeholder)
+        run: echo "TODO: Add IPA codesign + packaging here"
