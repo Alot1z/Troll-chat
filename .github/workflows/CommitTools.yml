@@ -35,19 +35,26 @@ jobs:
             echo "→ llama.cpp missing, cloning..."
             rm -rf llama
             git clone --depth=1 https://github.com/ggerganov/llama.cpp.git llama
-            cd llama && mkdir -p build && cd build
-            cmake .. && cmake --build . --target llama -j$(nproc)
-            cd ../../../
-            MISSING+=("llama.cpp")
+            cd llama
+            mkdir -p build && cd build
+            cmake .. -DLLAMA_CURL=OFF
+            cmake --build . --target llama -j$(nproc)
+            cd ../../
+            MISSING+=("llama")
           fi
 
           # 2) tools (ldid, clang, make, strip)
-          if [ ! -d tools ] || [ ! -f tools/ldid ]; then
-            echo "→ tools missing, copying system tools..."
-            mkdir -p tools
-            for t in clang make ldid strip; do
-              cp "$(which $t || true)" tools/ || true
-            done
+          TOOLS_ADDED=()
+          mkdir -p tools
+          for t in clang make ldid strip; do
+            path=$(which $t || true)
+            if [ -n "$path" ]; then
+              cp "$path" tools/
+              TOOLS_ADDED+=("$t")
+            fi
+          done
+          if [ ${#TOOLS_ADDED[@]} -gt 0 ]; then
+            echo "→ Added tools: ${TOOLS_ADDED[*]}"
             MISSING+=("tools")
           fi
 
@@ -56,7 +63,7 @@ jobs:
             echo "→ models folder missing, creating placeholder..."
             mkdir -p src/models
             echo "version: v1.0" > src/models/README.md
-            MISSING+=("models")
+            MISSING+=("src/models")
           fi
 
           # 4) versions.txt
@@ -77,7 +84,10 @@ jobs:
         if: steps.gather.outputs.missing_assets != ''
         run: |
           echo "Assets to commit: ${{ steps.gather.outputs.missing_assets }}"
-          git add llama tools src/models versions.txt
+          # Commit præcis de mapper/filer, vi har tilføjet
+          for item in ${{ steps.gather.outputs.missing_assets }}; do
+            git add "$item"
+          done
           git commit -m "📦 Add missing assets: ${{ steps.gather.outputs.missing_assets }}" || true
           git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main
 
