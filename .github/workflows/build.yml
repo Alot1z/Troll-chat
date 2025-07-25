@@ -34,10 +34,10 @@ jobs:
 
       - name: 📁 Ensure model folder is committed
         run: |
-          if [ ! -d "models" ]; then
-            mkdir models
-            echo "README for models" > models/README.md
-            git add models
+          if [ ! -d "src/models" ]; then
+            mkdir -p src/models
+            echo "README for models" > src/models/README.md
+            git add src/models
             git commit -am "📦 Add empty models folder (initial)"
             git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
           fi
@@ -45,9 +45,6 @@ jobs:
       - name: ⚙️ Build llama.cpp (libllama.a)
         run: |
           cd llama
-          mkdir -p build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
           make -j$(sysctl -n hw.ncpu)
 
       - name: 🛠 Build trollchat binary
@@ -62,7 +59,7 @@ jobs:
           mkdir -p Payload/TrollChat.app
           cp src/trollchat Payload/TrollChat.app/
           cp trollchat.plist Payload/TrollChat.app/Info.plist
-          cp -r models Payload/TrollChat.app/models
+          cp -r src/models Payload/TrollChat.app/models
           zip -qry TrollChat.ipa Payload
 
       - name: 📤 Upload IPA
