@@ -23,28 +23,24 @@ jobs:
           git config --global user.name "TrollChat Auto Builder"
           git config --global user.email "trollchat-bot@users.noreply.github.com"
 
-      - name: 🧰 ⏳ Skip tool re-install if already exists
+      - name: 🧰 Install required tools and cache them
         run: |
-          if [ -f tools/version.txt ]; then
-            echo "✅ Tools already installed"
-            exit 0
+          if [ ! -f tools/version.txt ]; then
+            mkdir -p tools
+            for tool in ldid clang make dpkg python3 strip; do
+              path=$(which $tool || true)
+              [ -n "$path" ] && cp "$path" tools/$tool
+            done
+            echo "v1.0" > tools/version.txt
+            git add tools
+            git commit -m "📦 Add tools v1.0" || true
+            git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main || true
           fi
-
-          echo "Installing tools..."
-          mkdir -p tools
-          for tool in ldid clang make dpkg python3 strip; do
-            path=$(which $tool || true)
-            [ -n "$path" ] && cp "$path" tools/$tool
-          done
-          echo "v1.0" > tools/version.txt
-          git add tools
-          git commit -m "📦 Add tools v1.0" || true
-          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main || true
 
       - name: 🐑 Clone llama.cpp permanently if missing
         run: |
           if [ ! -d "llama" ]; then
-            git clone --depth 1 https://github.com/ggml-org/llama.cpp.git llama
+            git clone --depth=1 https://github.com/ggml-org/llama.cpp.git llama
             git add llama
             git commit -am "📦 Add llama.cpp permanently"
             git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
@@ -63,9 +59,9 @@ jobs:
       - name: ⚙️ Build llama.cpp (libllama.a)
         run: |
           cd llama
-          make -j$(sysctl -n hw.ncpu)
+          make libllama.a -j$(sysctl -n hw.ncpu)
 
-      - name: 🛠 Build trollchat binary
+      - name: 🛠 Build trollchat binary using Makefile
         run: |
           make
 
