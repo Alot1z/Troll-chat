@@ -9,6 +9,9 @@ jobs:
     permissions:
       contents: write
 
+    env:
+      GH_TOKEN: ${{ secrets.buildtoken }}
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -17,22 +20,29 @@ jobs:
 
       - name: 🧾 Configure Git identity
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "TrollChat Auto Builder"
+          git config --global user.email "trollchat-bot@users.noreply.github.com"
 
-      - name: 🔁 Cache llama.cpp
-        id: cache-llama
-        uses: actions/cache@v4
-        with:
-          path: llama
-          key: llama-cpp-${{ runner.os }}-v5
-
-      - name: 🐑 Clone llama.cpp if cache miss
-        if: steps.cache-llama.outputs.cache-hit != 'true'
+      - name: 🐑 Clone llama.cpp permanently if missing
         run: |
-          git clone --depth 1 https://github.com/ggml-org/llama.cpp.git llama
+          if [ ! -d "llama" ]; then
+            git clone --depth 1 https://github.com/ggml-org/llama.cpp.git llama
+            git add llama
+            git commit -am "📦 Add llama.cpp permanently"
+            git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+          fi
 
-      - name: ⚙️ Build libllama.a via CMake
+      - name: 📁 Ensure model folder is committed
+        run: |
+          if [ ! -d "models" ]; then
+            mkdir models
+            echo "README for models" > models/README.md
+            git add models
+            git commit -am "📦 Add empty models folder (initial)"
+            git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+          fi
+
+      - name: ⚙️ Build llama.cpp (libllama.a)
         run: |
           cd llama
           mkdir -p build
@@ -43,13 +53,14 @@ jobs:
       - name: 🛠 Build trollchat binary
         run: make
 
-      - name: 🔐 Code‑sign for TrollStore
-        run: ldid -Sentitlements/trollchat.entitlements src/$(APP_NAME)
+      - name: 🔐 Code-sign for TrollStore
+        run: |
+          ldid -Sentitlements/trollchat.entitlements src/trollchat
 
       - name: 📱 Package .ipa
         run: |
           mkdir -p Payload/TrollChat.app
-          cp src/$(APP_NAME) Payload/TrollChat.app/
+          cp src/trollchat Payload/TrollChat.app/
           cp trollchat.plist Payload/TrollChat.app/Info.plist
           cp -r models Payload/TrollChat.app/models
           zip -qry TrollChat.ipa Payload
