@@ -44,7 +44,7 @@ jobs:
           mkdir -p build
           cd build
           cmake ..
-          cmake --build . --target llama-static -j$(sysctl -n hw.ncpu)
+          cmake --build . --target llama -j$(sysctl -n hw.ncpu)
 
       - name: 🛠 Build trollchat binary
         run: make
