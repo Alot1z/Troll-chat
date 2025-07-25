@@ -1,7 +1,7 @@
 name: 🚀 Full Build (CommitTools + Build)
 
 on:
-  workflow_dispatch:  # <- vigtig! Muliggør manuel kørsel via GitHub UI
+  workflow_dispatch:  # Muliggør manuel kørsel via GitHub UI
 
 jobs:
   full:
@@ -37,5 +37,12 @@ jobs:
       - name: 🔧 Build TrollChat binary
         run: make
 
+      - name: 🔐 Codesign binary (placeholder)
+        run: |
+          echo "Signing binary..."
+          # eksempel: ldid -S entitlements.plist src/trollchat
+
       - name: 📦 Package into .ipa (placeholder)
-        run: echo "TODO: Add IPA codesign + packaging here"
+        run: |
+          echo "Packaging .ipa..."
+          # her kan du kalde scripts eller xcodebuild kommandoer til pakning
