@@ -1,0 +1,85 @@
+name: 📦 Commit Missing Tools & Assets
+
+on:
+  workflow_dispatch:
+
+jobs:
+  commit-tools:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      GH_TOKEN: ${{ secrets.buildtoken }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🧾 Configure Git identity
+        run: |
+          git config --global user.name "TrollChat Asset Bot"
+          git config --global user.email "assets@trollchat.bot"
+
+      - name: 🔍 Check & gather missing assets
+        id: gather
+        run: |
+          set -euo pipefail
+          MISSING=()
+
+          # 1) llama.cpp
+          if [ ! -f llama/CMakeLists.txt ]; then
+            echo "→ llama.cpp missing, cloning..."
+            rm -rf llama
+            git clone --depth=1 https://github.com/ggerganov/llama.cpp.git llama
+            cd llama && mkdir -p build && cd build
+            cmake .. && cmake --build . --target llama -j$(nproc)
+            cd ../../../
+            MISSING+=("llama.cpp")
+          fi
+
+          # 2) tools (ldid, clang, make, strip)
+          if [ ! -d tools ] || [ ! -f tools/ldid ]; then
+            echo "→ tools missing, copying system tools..."
+            mkdir -p tools
+            for t in clang make ldid strip; do
+              cp "$(which $t || true)" tools/ || true
+            done
+            MISSING+=("tools")
+          fi
+
+          # 3) models folder
+          if [ ! -d src/models ] || [ ! -f src/models/README.md ]; then
+            echo "→ models folder missing, creating placeholder..."
+            mkdir -p src/models
+            echo "version: v1.0" > src/models/README.md
+            MISSING+=("models")
+          fi
+
+          # 4) versions.txt
+          if [ ! -f versions.txt ]; then
+            echo "→ versions.txt missing, creating..."
+            echo "v1.0" > versions.txt
+            MISSING+=("versions.txt")
+          fi
+
+          # Export missing list
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "missing_assets=${MISSING[*]}" >> $GITHUB_OUTPUT
+          else
+            echo "missing_assets=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 📝 Commit & Push missing assets
+        if: steps.gather.outputs.missing_assets != ''
+        run: |
+          echo "Assets to commit: ${{ steps.gather.outputs.missing_assets }}"
+          git add llama tools src/models versions.txt
+          git commit -m "📦 Add missing assets: ${{ steps.gather.outputs.missing_assets }}" || true
+          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main
+
+      - name: ✅ No missing assets, nothing to do
+        if: steps.gather.outputs.missing_assets == ''
+        run: echo "All assets already present — skipping commit."
