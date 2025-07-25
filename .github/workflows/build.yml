@@ -32,19 +32,18 @@ jobs:
             git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main || true
           fi
 
-      - name: 📦 Cache llama build
-        uses: actions/cache@v4
-        with:
-          path: llama/build
-          key: llama-build-${{ github.run_id }}
+      - name: 📁 Ensure model folder exists
+        run: |
+          mkdir -p src/models
+          echo "README" > src/models/README.md
 
       - name: ⚙️ Build libllama.a
         run: |
           cd llama
           mkdir -p build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
-          cmake --build . --config Release --target libllama.a -- -j$(sysctl -n hw.ncpu)
+          cmake ..
+          cmake --build . --target libllama.a -j$(sysctl -n hw.ncpu)
 
       - name: 🛠 Build trollchat binary
         run: make
@@ -52,10 +51,10 @@ jobs:
       - name: 🔐 Code-sign for TrollStore
         run: ./tools/ldid -Sentitlements/trollchat.entitlements src/trollchat
 
-      - name: 📱 Package into .ipa
+      - name: 📱 Package TrollChat.ipa
         run: |
           mkdir -p Payload/TrollChat.app
-          cp src/trollchat Payload/TrollChat.app/
+          cp src/trollchat Payload/TrollChat.app/trollchat
           cp trollchat.plist Payload/TrollChat.app/Info.plist
           cp -r src/models Payload/TrollChat.app/models
           zip -qry TrollChat.ipa Payload
