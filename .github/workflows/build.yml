@@ -13,38 +13,45 @@ jobs:
       GH_TOKEN: ${{ secrets.buildtoken }}
 
     steps:
-      - name: 📥 Checkout code
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 🧾 Configure Git identity
+      - name: 🔍 Check for missing assets
+        id: check_assets
         run: |
-          git config --global user.name "TrollChat Auto Builder"
-          git config --global user.email "trollchat-bot@users.noreply.github.com"
+          missing=0
+          for path in \
+            llama/CMakeLists.txt \
+            llama/build/libllama.a \
+            tools/ldid \
+            src/models/README.md \
+            versions.txt; do
+            if [ ! -e "$path" ]; then
+              echo "Asset missing: $path"
+              missing=1
+            fi
+          done
+          echo "missing=$missing" >> $GITHUB_OUTPUT
 
-      - name: 🐑 Clone correct llama.cpp if missing
-        run: |
-          if [ ! -d llama ] || [ ! -f llama/CMakeLists.txt ]; then
-            rm -rf llama
-            git clone --depth=1 https://github.com/ggerganov/llama.cpp.git llama
-            git add llama
-            git commit -m "📦 Add correct llama.cpp" || true
-            git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main || true
-          fi
-
-      - name: 📁 Ensure model folder exists
-        run: |
-          mkdir -p src/models
-          echo "README" > src/models/README.md
+      - name: 🚧 Trigger CommitTools workflow if assets are missing
+        if: steps.check_assets.outputs.missing == '1'
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: CommitTools.yml
+          token: ${{ secrets.GH_TOKEN }}
 
       - name: 🛠 Build trollchat binary
+        if: steps.check_assets.outputs.missing == '0'
         run: make
 
       - name: 🔐 Code-sign for TrollStore
+        if: steps.check_assets.outputs.missing == '0'
         run: ./tools/ldid -Sentitlements/trollchat.entitlements src/trollchat
 
       - name: 📱 Package TrollChat.ipa
+        if: steps.check_assets.outputs.missing == '0'
         run: |
           mkdir -p Payload/TrollChat.app
           cp src/trollchat Payload/TrollChat.app/trollchat
@@ -53,6 +60,7 @@ jobs:
           zip -qry TrollChat.ipa Payload
 
       - name: 📤 Upload IPA artifact
+        if: steps.check_assets.outputs.missing == '0'
         uses: actions/upload-artifact@v4
         with:
           name: TrollChat.ipa
