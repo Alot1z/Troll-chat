@@ -9,6 +9,9 @@ LLAMA_DIR := llama
 LLAMA_LIB := $(LLAMA_DIR)/build/bin/libllama.a
 LLAMA_OBJ := $(LLAMA_DIR)/build/CMakeFiles/llama.dir/llama.o
 
+$(LLAMA_LIB):
+	cd $(LLAMA_DIR) && mkdir -p build && cd build && cmake .. && cmake --build . --target llama -j$(shell sysctl -n hw.ncpu)
+
 CFLAGS := -target arm64-apple-ios11.0 \
           -isysroot $(IOS_SDK) \
           -fobjc-arc \
