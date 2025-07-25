@@ -1,33 +1,32 @@
-APP_NAME  := trollchat
-SRC       := src/main.m
-OBJ       := $(SRC:.m=.o)
-CC        := clang
-IOS_SDK   := $(shell xcrun --sdk iphoneos --show-sdk-path)
+APP_NAME := trollchat
+SRC      := src/main.m
+OBJ      := src/main.o
+CC       := clang
+IOS_SDK  := $(shell xcrun --sdk iphoneos --show-sdk-path)
 
-# llama.cpp konfiguration
-LLAMA_DIR  := llama
-LLAMA_INC  := $(LLAMA_DIR)/include
-LLAMA_GGML := $(LLAMA_DIR)/ggml/src
-LLAMA_LIB  := $(LLAMA_DIR)/build/libllama.a
+# llama.cpp opsætning
+LLAMA_DIR := llama
+LLAMA_LIB := $(LLAMA_DIR)/build/libllama.a
+LLAMA_OBJ := $(LLAMA_DIR)/build/CMakeFiles/llama.dir/llama.o
 
 CFLAGS := -target arm64-apple-ios11.0 \
           -isysroot $(IOS_SDK) \
           -fobjc-arc \
-          -I$(LLAMA_INC) \
-          -I$(LLAMA_GGML)
+          -I$(LLAMA_DIR)/ \
+          -I$(LLAMA_DIR)/ggml/include \
+          -I$(LLAMA_DIR)/ggml/src
 
-LDFLAGS := -L$(LLAMA_DIR)/build \
-           -llama \
-           -framework Foundation \
+LDFLAGS := -framework Foundation \
            -framework UIKit \
-           -lobjc
+           -lobjc \
+           $(LLAMA_LIB)
 
 .PHONY: all clean
 
 all: src/$(APP_NAME)
 
 src/$(APP_NAME): $(OBJ) $(LLAMA_LIB)
-	$(CC) $(CFLAGS) $(OBJ) -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $< $(LLAMA_OBJ) -o $@ $(LDFLAGS)
 
 src/main.o: src/main.m
 	$(CC) $(CFLAGS) -c $< -o $@
