@@ -1,18 +1,1 @@
-      - name: ⏳ Skip tool re-install if already exists
-        run: |
-          if [ -f tools/version.txt ]; then
-            echo "✅ Tools already installed"
-            exit 0
-          fi
-
-          echo "Installing tools..."
-          mkdir -p tools
-          for tool in ldid clang make dpkg python3 strip; do
-            path=$(which $tool || true)
-            [ -n "$path" ] && cp "$path" tools/$tool
-          done
-          echo "v1.0" > tools/version.txt
-
-          git add tools
-          git commit -m "📦 Add tools v1.0" || true
-          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main || true
+v1.0
