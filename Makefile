@@ -2,21 +2,21 @@ APP_NAME := trollchat
 SRC      := src/main.m
 OBJ      := src/main.o
 CC       := clang
-IOS_SDK  := $(shell xcrun --sdªk iphoneos --show-sdk-path)
+IOS_SDK  := $(shell xcrun --sdk iphoneos --show-sdk-path)
 
-# llama.cpp opsætning
+# llama.cpp directory and build
 LLAMA_DIR := llama
 LLAMA_LIB := $(LLAMA_DIR)/build/libllama.a
 LLAMA_OBJ := llama.o
 
-# Kompile‑flagger
+# Compilation flags with precise include dirs
 CFLAGS := -target arm64-apple-ios11.0 \
           -isysroot $(IOS_SDK) \
           -fobjc-arc \
           -I$(LLAMA_DIR)/include \
           -I$(LLAMA_DIR)/ggml/src
 
-# Link‑flagger
+# Link flags
 LDFLAGS := -framework Foundation \
            -framework UIKit \
            -lobjc \
@@ -27,15 +27,15 @@ LDFLAGS := -framework Foundation \
 all: src/$(APP_NAME)
 
 src/$(APP_NAME): $(OBJ) $(LLAMA_LIB)
-	# Extract llama.o fra static lib
-o	ar -x $(LLAMA_LIB) $(LLAMA_OBJ)
+	# extract llama.o and then link
+	ar -x $(LLAMA_LIB) $(LLAMA_OBJ)
 	$(CC) $(CFLAGS) $< $(LLAMA_OBJ) -o src/$(APP_NAME) $(LDFLAGS)
 
 src/main.o: src/main.m
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Byg llama via CMake
-e	$(LLAMA_LIB):
+# Build llama.cpp using CMake
+$(LLAMA_LIB):
 	mkdir -p $(LLAMA_DIR)/build
 	cd $(LLAMA_DIR)/build && \
 	  cmake -DCMAKE_BUILD_TYPE=Release .. && \
