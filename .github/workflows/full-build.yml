@@ -20,13 +20,6 @@ jobs:
           git config --global user.name "TrollChat Auto Builder"
           git config --global user.email "trollchat-bot@users.noreply.github.com"
 
-      - name: 🧹 Remove broken llama folder if exists
-        run: |
-          if [ -d "llama" ]; then
-            echo "Removing old llama folder..."
-            rm -rf llama
-          fi
-
       - name: 📦 Clone llama.cpp if missing
         run: |
           if [ ! -f "llama/build/bin/llama" ]; then
@@ -47,17 +40,23 @@ jobs:
       - name: 🔧 Build TrollChat binary
         run: make
 
-      - name: 🔐 Codesign binary (placeholder)
-        run: echo "Signing binary..."
-
-      - name: 📦 Package into .ipa (temporary placeholder)
+      - name: 🏗️ Prepare TrollChat.app structure
         run: |
-          echo "Creating fake .ipa..."
-          mkdir -p build
-          touch build/TrollChat.ipa
+          mkdir -p Payload/TrollChat.app
+          cp src/trollchat Payload/TrollChat.app/trollchat
+          cp Info.plist Payload/TrollChat.app/Info.plist
+          cp entitlements.plist Payload/TrollChat.app/entitlements.plist
 
-      - name: 📤 Upload IPA artifact
+      - name: 🔐 Codesign TrollChat binary
+        run: |
+          ldid -S Payload/TrollChat.app/entitlements.plist Payload/TrollChat.app/trollchat
+
+      - name: 📦 Package TrollChat.ipa
+        run: |
+          zip -r TrollChat.ipa Payload
+
+      - name: 📤 Upload TrollChat.ipa artifact
         uses: actions/upload-artifact@v4
         with:
           name: TrollChat.ipa
-          path: build/TrollChat.ipa
+          path: TrollChat.ipa
