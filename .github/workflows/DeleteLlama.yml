@@ -1,0 +1,31 @@
+name: 🔥 Remove Broken Submodule (llama)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🧹 Remove .gitmodules and submodule tracking
+        run: |
+          rm -f .gitmodules
+          git rm --cached llama || true
+          rm -rf llama || true
+
+      - name: 🧾 Set Git identity
+        run: |
+          git config --global user.name "TrollChat Cleaner Bot"
+          git config --global user.email "trollchat-cleaner@users.noreply.github.com"
+
+      - name: 💾 Commit cleanup
+        run: |
+          git add -A
+          git commit -m "🔥 Remove broken llama submodule"
+          git push origin main
