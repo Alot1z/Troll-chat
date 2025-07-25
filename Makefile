@@ -4,7 +4,7 @@ OBJ      := src/main.o
 CC       := clang
 IOS_SDK  := $(shell xcrun --sdk iphoneos --show-sdk-path)
 
-# llama.cpp opsætning
+# llama.cpp settings
 LLAMA_DIR := llama
 LLAMA_LIB := $(LLAMA_DIR)/build/bin/libllama.a
 LLAMA_OBJ := $(LLAMA_DIR)/build/CMakeFiles/llama.dir/llama.o
@@ -14,7 +14,8 @@ CFLAGS := -target arm64-apple-ios11.0 \
           -fobjc-arc \
           -I$(LLAMA_DIR)/ \
           -I$(LLAMA_DIR)/ggml/include \
-          -I$(LLAMA_DIR)/ggml/src
+          -I$(LLAMA_DIR)/ggml/src \
+          -I$(LLAMA_DIR)/common
 
 LDFLAGS := -framework Foundation \
            -framework UIKit \
@@ -26,7 +27,7 @@ LDFLAGS := -framework Foundation \
 all: src/$(APP_NAME)
 
 src/$(APP_NAME): $(OBJ) $(LLAMA_LIB)
-	$(CC) $(CFLAGS) $< $(LLAMA_OBJ) -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $(OBJ) $(LLAMA_OBJ) -o $@ $(LDFLAGS)
 
 src/main.o: src/main.m
 	$(CC) $(CFLAGS) -c $< -o $@
