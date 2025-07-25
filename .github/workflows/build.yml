@@ -10,28 +10,29 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Configure Git identity
+      - name: 🧾 Configure Git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Cache llama.cpp
+      - name: 🔁 Cache llama.cpp
         id: cache-llama
         uses: actions/cache@v4
         with:
           path: llama
-          key: llama-cpp-${{ runner.os }}-v4
+          key: llama-cpp-${{ runner.os }}-v5
 
-      - name: Clone llama.cpp if missing
+      - name: 🐑 Clone llama.cpp if cache miss
         if: steps.cache-llama.outputs.cache-hit != 'true'
         run: |
-          git clone --depth=1 https://github.com/ggerganov/llama.cpp.git llama
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp.git llama
 
-      - name: Build libllama.a via CMake
+      - name: ⚙️ Build libllama.a via CMake
         run: |
           cd llama
           mkdir -p build
@@ -39,13 +40,13 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release ..
           make -j$(sysctl -n hw.ncpu)
 
-      - name: Build trollchat binary
+      - name: 🛠 Build trollchat binary
         run: make
 
-      - name: Code-sign for TrollStore
+      - name: 🔐 Code‑sign for TrollStore
         run: ldid -Sentitlements/trollchat.entitlements src/$(APP_NAME)
 
-      - name: Package .ipa
+      - name: 📱 Package .ipa
         run: |
           mkdir -p Payload/TrollChat.app
           cp src/$(APP_NAME) Payload/TrollChat.app/
@@ -53,7 +54,7 @@ jobs:
           cp -r models Payload/TrollChat.app/models
           zip -qry TrollChat.ipa Payload
 
-      - name: Upload IPA
+      - name: 📤 Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: TrollChat.ipa
