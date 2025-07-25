@@ -4,21 +4,20 @@ OBJ      := src/main.o
 CC       := clang
 IOS_SDK  := $(shell xcrun --sdk iphoneos --show-sdk-path)
 
-# Brug det officielle ggml‑org/llama.cpp‑repo
+# llama.cpp opsætning
 LLAMA_DIR := llama
 LLAMA_LIB := $(LLAMA_DIR)/build/libllama.a
 LLAMA_OBJ := llama.o
 
-# Compile‑flags: inkluder både llama/include (for llama.h),
-# roden af llama/ (for ggml.h), og ggml/src (for implementations)
+# Compile-flags: include llama/include, ggml/include og ggml/src
 CFLAGS := -target arm64-apple-ios11.0 \
           -isysroot $(IOS_SDK) \
           -fobjc-arc \
-          -I$(LLAMA_DIR)/include \
-          -I$(LLAMA_DIR) \
-          -I$(LLAMA_DIR)/ggml/src
+          -I$(LLAMA_DIR)/include \      # llama.h
+          -I$(LLAMA_DIR)/ggml/include \ # ggml.h
+          -I$(LLAMA_DIR)/ggml/src       # interne ggml-headers (implementation)
 
-# Link‑flags: frameworks + statisk lib
+# Link-flags
 LDFLAGS := -framework Foundation \
            -framework UIKit \
            -lobjc \
@@ -29,14 +28,14 @@ LDFLAGS := -framework Foundation \
 all: src/$(APP_NAME)
 
 src/$(APP_NAME): $(OBJ) $(LLAMA_LIB)
-	# Træk llama.o ud af libllama.a
+	# extract lancer object and link
 	ar -x $(LLAMA_LIB) $(LLAMA_OBJ)
 	$(CC) $(CFLAGS) $< $(LLAMA_OBJ) -o src/$(APP_NAME) $(LDFLAGS)
 
 src/main.o: src/main.m
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Byg llama.cpp med CMake
+# Build llama via CMake
 $(LLAMA_LIB):
 	mkdir -p $(LLAMA_DIR)/build
 	cd $(LLAMA_DIR)/build && \
