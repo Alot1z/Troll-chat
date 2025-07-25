@@ -1,0 +1,117 @@
+name: 🚀 Full Build (CommitTools + Build)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  commit-tools:
+    name: 📦 Commit Missing Tools & Assets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      GH_TOKEN: ${{ secrets.buildtoken }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.buildtoken }}
+          fetch-depth: 0
+
+      - name: 🧾 Configure Git identity
+        run: |
+          git config --global user.name "TrollChat Asset Bot"
+          git config --global user.email "assets@trollchat.bot"
+
+      - name: 🔍 Gather & commit missing assets
+        id: gather
+        run: |
+          set -euo pipefail
+          MISSING=()
+
+          # 1) llama.cpp
+          if [ ! -f llama/CMakeLists.txt ]; then
+            echo "→ llama.cpp missing, cloning + building..."
+            rm -rf llama
+            git clone --depth=1 https://github.com/ggerganov/llama.cpp.git llama
+            cd llama && mkdir -p build && cd build
+            cmake .. -DLLAMA_CURL=OFF
+            cmake --build . --target llama -j$(nproc)
+            cd ../../
+            MISSING+=("llama")
+          fi
+
+          # 2) tools
+          TOOLS_ADDED=()
+          mkdir -p tools
+          for t in clang make ldid strip; do
+            P=$(which $t 2>/dev/null || true)
+            if [ -n "$P" ]; then cp "$P" tools/ && TOOLS_ADDED+=("$t"); fi
+          done
+          if [ ${#TOOLS_ADDED[@]} -gt 0 ]; then echo "→ Added tools: ${TOOLS_ADDED[*]}"; MISSING+=("tools"); fi
+
+          # 3) models folder
+          if [ ! -f src/models/README.md ]; then
+            echo "→ models missing, creating placeholder..."
+            mkdir -p src/models
+            echo "version: v1.0" > src/models/README.md
+            MISSING+=("src/models")
+          fi
+
+          # 4) versions.txt
+          if [ ! -f versions.txt ]; then
+            echo "→ versions.txt missing, creating..."
+            echo "v1.0" > versions.txt
+            MISSING+=("versions.txt")
+          fi
+
+          # Export flag
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "missing=1" >> $GITHUB_OUTPUT
+            echo "added=${MISSING[*]}" >> $GITHUB_OUTPUT
+          else
+            echo "missing=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 📝 Commit & Push if needed
+        if: steps.gather.outputs.missing == '1'
+        run: |
+          echo "Assets to commit: ${{ steps.gather.outputs.added }}"
+          for p in ${{ steps.gather.outputs.added }}; do git add "$p"; done
+          git commit -m "📦 Add missing assets: ${{ steps.gather.outputs.added }}" || true
+          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main
+
+  build:
+    name: 🛠 Build TrollChat iOS CLI
+    needs: commit-tools
+    runs-on: macos-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout code (with new assets)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🛠 Build trollchat binary
+        run: make
+
+      - name: 🔐 Code-sign for TrollStore
+        run: ./tools/ldid -Sentitlements/trollchat.entitlements src/trollchat
+
+      - name: 📱 Package TrollChat.ipa
+        run: |
+          mkdir -p Payload/TrollChat.app
+          cp src/trollchat Payload/TrollChat.app/trollchat
+          cp trollchat.plist Payload/TrollChat.app/Info.plist
+          cp -r src/models Payload/TrollChat.app/models
+          zip -qry TrollChat.ipa Payload
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrollChat.ipa
+          path: TrollChat.ipa
