@@ -5,7 +5,7 @@ on:
 
 jobs:
   commit-tools:
-    uses: ./CommitTools.yml
+    uses: ./.github/workflows/CommitTools.yml
 
   build:
     needs: commit-tools
@@ -15,19 +15,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with: fetch-depth: 0
+        with:
+          fetch-depth: 0
 
       - name: Configure Git identity
         run: |
           git config --global user.name "TrollChat Auto Builder"
           git config --global user.email "trollchat-bot@users.noreply.github.com"
 
-      - name: Build library via CMake & ninja
+      - name: Build llama via CMake
         run: |
           cd llama && mkdir -p build && cd build
           cmake .. && cmake --build . --target llama -j$(sysctl -n hw.ncpu)
 
-      - name: Build trollchat
+      - name: Build trollchat binary
         run: make
 
-      - … fortsæt de resterende steps med code-sign, .ipa osv.
+      - name: Package IPA (placeholder)
+        run: echo "TODO: Add IPA packaging & signing here"
