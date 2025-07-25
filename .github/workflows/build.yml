@@ -23,53 +23,36 @@ jobs:
           git config --global user.name "TrollChat Auto Builder"
           git config --global user.email "trollchat-bot@users.noreply.github.com"
 
-      - name: 🧰 Install required tools and cache them
-        run: |
-          if [ ! -f tools/version.txt ]; then
-            mkdir -p tools
-            for tool in ldid clang make dpkg python3 strip; do
-              path=$(which $tool || true)
-              [ -n "$path" ] && cp "$path" tools/$tool
-            done
-            echo "v1.0" > tools/version.txt
-            git add tools
-            git commit -m "📦 Add tools v1.0" || true
-            git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main || true
-          fi
-
       - name: 🐑 Clone llama.cpp permanently if missing
         run: |
-          if [ ! -d "llama" ]; then
+          if [ ! -d llama ]; then
             git clone --depth=1 https://github.com/ggml-org/llama.cpp.git llama
             git add llama
-            git commit -am "📦 Add llama.cpp permanently"
-            git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+            git commit -m "📦 Add llama.cpp" || true
+            git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main || true
           fi
 
-      - name: 📁 Ensure model folder is committed
-        run: |
-          if [ ! -d "src/models" ]; then
-            mkdir -p src/models
-            echo "README for models" > src/models/README.md
-            git add src/models
-            git commit -am "📦 Add empty models folder (initial)"
-            git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
-          fi
+      - name: 📦 Cache llama build
+        uses: actions/cache@v4
+        with:
+          path: llama/build
+          key: llama-build-${{ github.run_id }}
 
-      - name: ⚙️ Build llama.cpp (libllama.a)
+      - name: ⚙️ Build libllama.a
         run: |
           cd llama
-          make libllama.a -j$(sysctl -n hw.ncpu)
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build . --config Release --target libllama.a -- -j$(sysctl -n hw.ncpu)
 
-      - name: 🛠 Build trollchat binary using Makefile
-        run: |
-          make
+      - name: 🛠 Build trollchat binary
+        run: make
 
       - name: 🔐 Code-sign for TrollStore
-        run: |
-          ./tools/ldid -Sentitlements/trollchat.entitlements src/trollchat
+        run: ./tools/ldid -Sentitlements/trollchat.entitlements src/trollchat
 
-      - name: 📱 Package .ipa
+      - name: 📱 Package into .ipa
         run: |
           mkdir -p Payload/TrollChat.app
           cp src/trollchat Payload/TrollChat.app/
@@ -77,7 +60,7 @@ jobs:
           cp -r src/models Payload/TrollChat.app/models
           zip -qry TrollChat.ipa Payload
 
-      - name: 📤 Upload IPA
+      - name: 📤 Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: TrollChat.ipa
