@@ -38,14 +38,6 @@ jobs:
           mkdir -p src/models
           echo "README" > src/models/README.md
 
-      - name: ⚙️ Build libllama.a via CMake
-        run: |
-          cd llama
-          mkdir -p build
-          cd build
-          cmake ..
-          cmake --build . --target llama -j$(sysctl -n hw.ncpu)
-
       - name: 🛠 Build trollchat binary
         run: make
 
