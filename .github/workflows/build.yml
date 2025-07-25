@@ -39,8 +39,9 @@ jobs:
         if: steps.check_assets.outputs.missing == '1'
         uses: benc-uk/workflow-dispatch@v1
         with:
+          token: ${{ secrets.buildtoken }}
           workflow: CommitTools.yml
-          token: ${{ secrets.GH_TOKEN }}
+          ref: main
 
       - name: 🛠 Build trollchat binary
         if: steps.check_assets.outputs.missing == '0'
