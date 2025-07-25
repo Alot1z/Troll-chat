@@ -13,9 +13,10 @@ jobs:
       GH_TOKEN: ${{ secrets.buildtoken }}
 
     steps:
-      - name: 📥 Checkout code
+      - name: 📥 Checkout code with buildtoken
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.buildtoken }}
           fetch-depth: 0
 
       - name: 🧾 Configure Git identity
