@@ -1,0 +1,48 @@
+name: 🧹 Remove All Submodules
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup-all-submodules:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      GH_TOKEN: ${{ secrets.buildtoken }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.buildtoken }}
+          fetch-depth: 0
+
+      - name: 🧾 Setup Git identity
+        run: |
+          git config --global user.name "Cleanup Bot"
+          git config --global user.email "cleanup@trollchat.bot"
+
+      - name: 📄 Detect and remove .gitmodules
+        run: |
+          if [ -f .gitmodules ]; then
+            echo ".gitmodules found, removing..."
+            git rm .gitmodules
+          else
+            echo "No .gitmodules to remove"
+          fi
+
+      - name: 🔍 Loop through and remove all submodules
+        run: |
+          git config -f .git/config --get-regexp '^submodule\..*\.path$' | while read -r key path; do
+            echo "Removing submodule: $path"
+            git submodule deinit -f -- "$path" || true
+            git rm -f --cached "$path" || true
+            rm -rf "$path" .git/modules/"$path" || true
+          done
+
+      - name: 📝 Commit and push removal
+        run: |
+          git add -u
+          git diff --quiet && echo "Nothing to commit"
