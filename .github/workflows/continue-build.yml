@@ -1,0 +1,19 @@
+name: ▶️ Continue Build after CommitTools
+
+on:
+  workflow_run:
+    workflows: ["📦 Commit Missing Tools & Assets"]
+    types:
+      - completed
+
+jobs:
+  continue:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Build workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          token: ${{ secrets.buildtoken }}
+          workflow: build.yml
+          ref: main
