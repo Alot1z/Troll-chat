@@ -6,7 +6,7 @@ IOS_SDK  := $(shell xcrun --sdk iphoneos --show-sdk-path)
 
 # llama.cpp opsætning
 LLAMA_DIR := llama
-LLAMA_LIB := $(LLAMA_DIR)/build/libllama.a
+LLAMA_LIB := $(LLAMA_DIR)/build/bin/libllama.a
 LLAMA_OBJ := $(LLAMA_DIR)/build/CMakeFiles/llama.dir/llama.o
 
 CFLAGS := -target arm64-apple-ios11.0 \
@@ -32,7 +32,7 @@ src/main.o: src/main.m
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(LLAMA_LIB):
-	cd $(LLAMA_DIR) && mkdir -p build && cd build && cmake .. && make -j$(shell sysctl -n hw.ncpu)
+	cd $(LLAMA_DIR) && mkdir -p build && cd build && cmake .. && cmake --build . --target llama-static -j$(shell sysctl -n hw.ncpu)
 
 clean:
 	rm -f src/*.o src/$(APP_NAME)
