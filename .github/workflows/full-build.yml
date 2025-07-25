@@ -1,7 +1,7 @@
 name: 🚀 Full Build (CommitTools + Build)
 
 on:
-  workflow_dispatch:  # Muliggør manuel kørsel via GitHub UI
+  workflow_dispatch:
 
 jobs:
   full:
@@ -10,23 +10,23 @@ jobs:
       contents: write
 
     steps:
-      - name: 📥 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 🧾 Configure Git identity
+      - name: Configure Git identity
         run: |
           git config --global user.name "TrollChat Auto Builder"
           git config --global user.email "trollchat-bot@users.noreply.github.com"
 
-      - name: 📦 Clone llama.cpp if missing
+      - name: Clone llama.cpp if missing
         if: ${{ !exists('llama/build/bin/llama') }}
         run: |
           echo "llama.cpp missing, cloning..."
           git clone https://github.com/ggerganov/llama.cpp.git llama
 
-      - name: 🏗️ Build llama via CMake
+      - name: Build llama via CMake
         run: |
           cd llama
           mkdir -p build
@@ -34,15 +34,14 @@ jobs:
           cmake ..
           cmake --build . --target llama -j$(sysctl -n hw.ncpu)
 
-      - name: 🔧 Build TrollChat binary
+      - name: Build TrollChat binary
         run: make
 
-      - name: 🔐 Codesign binary (placeholder)
+      - name: Codesign binary (placeholder)
         run: |
           echo "Signing binary..."
           # eksempel: ldid -S entitlements.plist src/trollchat
 
-      - name: 📦 Package into .ipa (placeholder)
+      - name: Package into .ipa (placeholder)
         run: |
           echo "Packaging .ipa..."
-          # her kan du kalde scripts eller xcodebuild kommandoer til pakning
