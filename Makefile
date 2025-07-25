@@ -28,7 +28,7 @@ LDFLAGS := -framework Foundation \
 all: src/$(APP_NAME)
 
 src/$(APP_NAME): $(OBJ) $(LLAMA_LIB)
-	# extract lancer object and link
+	# extract llama.o from libllama.a and link
 	ar -x $(LLAMA_LIB) $(LLAMA_OBJ)
 	$(CC) $(CFLAGS) $< $(LLAMA_OBJ) -o src/$(APP_NAME) $(LDFLAGS)
 
