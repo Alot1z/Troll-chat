@@ -1,16 +1,24 @@
+# App settings
 APP_NAME := trollchat
 SRC      := src/main.m
 OBJ      := src/main.o
+BIN      := src/$(APP_NAME)
+
+# Compiler settings
 CC       := clang
 IOS_SDK  := $(shell xcrun --sdk iphoneos --show-sdk-path)
 
 # llama.cpp settings
 LLAMA_DIR := llama
-LLAMA_BUILD_BIN := $(LLAMA_DIR)/build/bin/llama
+LLAMA_BUILD := $(LLAMA_DIR)/build
+LLAMA_BIN := $(LLAMA_BUILD)/bin/llama
 
-$(LLAMA_BUILD_BIN):
-	cd $(LLAMA_DIR) && mkdir -p build && cd build && cmake .. && cmake --build . --target llama -j$(shell sysctl -n hw.ncpu)
+# CMake build rule
+$(LLAMA_BIN):
+	mkdir -p $(LLAMA_BUILD)
+	cd $(LLAMA_BUILD) && cmake .. && cmake --build . --target llama -j$$(sysctl -n hw.ncpu)
 
+# Flags
 CFLAGS := -target arm64-apple-ios11.0 \
           -isysroot $(IOS_SDK) \
           -fobjc-arc \
@@ -23,16 +31,17 @@ LDFLAGS := -framework Foundation \
            -framework UIKit \
            -lobjc
 
+# Build rules
 .PHONY: all clean
 
-all: src/$(APP_NAME)
+all: $(BIN)
 
-src/$(APP_NAME): $(OBJ) $(LLAMA_BUILD_BIN)
+$(BIN): $(OBJ) $(LLAMA_BIN)
 	$(CC) $(CFLAGS) $(OBJ) -o $@ $(LDFLAGS)
 
-src/main.o: src/main.m
+$(OBJ): $(SRC)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f src/*.o src/$(APP_NAME)
-	rm -rf $(LLAMA_DIR)/build
+	rm -f src/*.o $(BIN)
+	rm -rf $(LLAMA_BUILD)
