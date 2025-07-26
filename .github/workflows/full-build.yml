@@ -20,42 +20,19 @@ jobs:
           git config --global user.name "TrollChat Auto Builder"
           git config --global user.email "trollchat-bot@users.noreply.github.com"
 
+      - name: 🧹 Clean previous build (optional)
+        run: make clean || true
+
       - name: 📦 Clone llama.cpp if missing
         run: |
           if [ ! -f "llama/build/bin/llama" ]; then
-            echo "llama.cpp binary missing, cloning repo..."
             git clone https://github.com/ggerganov/llama.cpp.git llama
-          else
-            echo "llama.cpp already cloned and built."
           fi
 
-      - name: 🏗️ Build llama via CMake
-        run: |
-          cd llama
-          mkdir -p build
-          cd build
-          cmake ..
-          cmake --build . --target llama -j$(sysctl -n hw.ncpu)
+      - name: 🏗️ Build project with Makefile
+        run: make package
 
-      - name: 🔧 Build TrollChat binary
-        run: make
-
-      - name: 🏗️ Prepare TrollChat.app structure
-        run: |
-          mkdir -p Payload/TrollChat.app
-          cp src/trollchat Payload/TrollChat.app/trollchat
-          cp Info.plist Payload/TrollChat.app/Info.plist
-          cp entitlements.plist Payload/TrollChat.app/entitlements.plist
-
-      - name: 🔐 Codesign TrollChat binary
-        run: |
-          ldid -S Payload/TrollChat.app/entitlements.plist Payload/TrollChat.app/trollchat
-
-      - name: 📦 Package TrollChat.ipa
-        run: |
-          zip -r TrollChat.ipa Payload
-
-      - name: 📤 Upload TrollChat.ipa artifact
+      - name: 📤 Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: TrollChat.ipa
