@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "llama.h"  // llama.cpp header from llama/include/llama.h
+#include "llama.h"  // llama.cpp header
 
 int main(int argc, char * argv[]) {
     @autoreleasepool {
